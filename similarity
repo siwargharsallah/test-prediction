@@ -1,0 +1,172 @@
+!pip install node2vec
+import pandas as pd
+import networkx as nx
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# Générer un graphe aléatoire (à adapter selon votre base de données)
+G = nx.erdos_renyi_graph(100, 0.1, seed=42)
+
+# Convertir le graphe en une DataFrame
+edges = pd.DataFrame(list(G.edges()), columns=['person1', 'person2'])
+edges['linked'] = 1
+
+# Ajouter des liens aléatoires pour représenter des non-liens
+non_edges = pd.DataFrame(columns=['person1', 'person2', 'linked'])
+for i in range(100):
+    non_links = G.nodes() - set(G.neighbors(i)) - {i}
+    non_links = pd.DataFrame({'person1': [i] * len(non_links),
+                              'person2': list(non_links),
+                              'linked': [0] * len(non_links)})
+    non_edges = non_edges.append(non_links, ignore_index=True)
+
+# Concaténer les liens et les non-liens pour créer la base de données
+data = pd.concat([edges, non_edges], ignore_index=True)
+
+
+import node2vec
+
+# Fonction pour générer des embeddings de nœuds avec node2vec
+def generate_node_embeddings(graph):
+    node2vec_model = node2vec.Node2Vec(graph, dimensions=64, walk_length=30, num_walks=200, workers=4)
+    model = node2vec_model.fit(window=10, min_count=1)
+    embeddings = {node: model.wv[node] for node in graph.nodes()}
+    return embeddings
+
+# Générer des embeddings de nœuds pour votre graphe
+node_embeddings = generate_node_embeddings(G)
+
+# Modifier la fonction extract_features pour inclure les embeddings de nœuds
+def extract_features(person1, person2):
+    features_person1 = [G.degree(person1)] + list(node_embeddings[person1])
+    features_person2 = [G.degree(person2)] + list(node_embeddings[person2])
+    return features_person1 + features_person2
+
+# Créer les fonctionnalités et les étiquettes avec les nouvelles fonctionnalités
+features = []
+labels = []
+for index, row in data.iterrows():
+    person1 = row['person1']
+    person2 = row['person2']
+    linked = row['linked']
+
+    # Extraire des fonctionnalités pour chaque paire de personnes
+    feature_vector = extract_features(person1, person2)
+
+    features.append(feature_vector)
+    labels.append(linked)
+
+# Continuer avec le reste du code...
+
+# Créer les fonctionnalités et les étiquettes avec les nouvelles fonctionnalités
+features = []
+labels = []
+for index, row in data.iterrows():
+    person1 = row['person1']
+    person2 = row['person2']
+    linked = row['linked']
+
+    # Extraire des fonctionnalités pour chaque paire de personnes
+    feature_vector = extract_features(person1, person2)
+
+    features.append(feature_vector)
+    labels.append(linked)
+
+# Continuer avec le reste du code...
+
+
+# Exemple de fonction pour extraire des fonctionnalités (à adapter selon votre base de données)
+def extract_features(person1, person2):
+    # Ici, vous devrez mettre votre propre logique pour extraire des fonctionnalités
+    # Ces fonctionnalités peuvent inclure des caractéristiques individuelles des personnes
+    # ainsi que des informations sur leur relation dans le graphe
+    return [G.degree(person1), G.degree(person2)]
+
+# Créer les fonctionnalités et les étiquettes
+features = []
+labels = []
+for index, row in data.iterrows():
+    person1 = row['person1']
+    person2 = row['person2']
+    linked = row['linked']
+
+    # Extraire des fonctionnalités pour chaque paire de personnes
+    feature_vector = extract_features(person1, person2)
+
+    features.append(feature_vector)
+    labels.append(linked)
+
+features = StandardScaler().fit_transform(features)
+labels = np.array(labels)
+
+# Diviser les données en ensembles d'entraînement et de test
+train_features, test_features, train_labels, test_labels = train_test_split(features, labels, test_size=0.2, random_state=42)
+
+# Créer le modèle de Régression Logistique
+model = LogisticRegression(random_state=42)
+
+# Entraîner le modèle
+model.fit(train_features, train_labels)
+
+# Prédire les liens sur les données de test
+predictions = model.predict(test_features)
+
+# Évaluer la précision du modèle
+accuracy = accuracy_score(test_labels, predictions)
+print(f"Précision du modèle : {accuracy * 100:.2f}%")
+
+# Afficher le rapport de classification
+print("Rapport de classification :\n", classification_report(test_labels, predictions))
+
+# Ajouter une fonction pour visualiser le graphe
+def plot_graph(graph):
+    pos = nx.spring_layout(graph)  # Définir une disposition pour le graphe
+    nx.draw(graph, pos, with_labels=True)
+    plt.show()
+# Générer un graphe aléatoire (à adapter selon votre base de données)
+G = nx.erdos_renyi_graph(100, 0.1, seed=42)
+
+
+def jaccard_similarity(node1, node2, graph):
+    neighbors1 = set(graph.neighbors(node1))
+    neighbors2 = set(graph.neighbors(node2))
+
+    intersection = len(neighbors1.intersection(neighbors2))
+    union = len(neighbors1.union(neighbors2))
+
+    similarity = intersection / union if union != 0 else 0
+    return similarity
+# Calculer la similarité de Jaccard pour chaque paire de nœuds
+similarities = []
+for index, row in data.iterrows():
+    person1 = row['person1']
+    person2 = row['person2']
+
+    similarity = jaccard_similarity(person1, person2, G)
+    similarities.append(similarity)
+
+# Ajouter les similarités à la DataFrame
+data['jaccard_similarity'] = similarities
+
+# Afficher les premières lignes de la DataFrame avec les similarités
+print(data.head())
+
+
+
+
+# Obtenir les nœuds et les arêtes
+nodes = list(G.nodes())
+edges = list(G.edges())
+
+print("Nœuds du graphe :", nodes)
+print("Arêtes du graphe :", edges)
+
+
+# Utiliser la fonction pour visualiser le graphe généré
+plot_graph(G)
+
